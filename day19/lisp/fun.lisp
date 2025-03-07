@@ -13,14 +13,19 @@ NUM colon:  NUM* ( | NUM* )?*
 
 |#
 
-;; implicit in haskell 
-;; string -> [char] 
-(defun tokeniser (s)
+(defun string-to-list (s)
   (let ((xs nil))
     (loop for i from 0 to (- (length s) 1) do
       (setq xs (cons (char s i) xs)))
     (setq xs (reverse xs))
-    (tokenise xs)))
+    xs))
+
+
+;; implicit in haskell 
+;; string -> [char] 
+(defun tokeniser (s)
+  (tokenise (string-to-list s)))
+
 
 ;; tokenise a list of characters
 (let ((digit-chars '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)))
@@ -190,6 +195,7 @@ NUM colon:  NUM* ( | NUM* )?*
 	 (values code-lines pattern-lines)))))))
 
 
+
 (defparameter tarray nil)
 (defparameter table nil)
 (defparameter patterns nil)
@@ -218,8 +224,81 @@ NUM colon:  NUM* ( | NUM* )?*
 ;; on entry to trying out need position index into string
 ;; potentially stack heavy recursively
 ;;
+;;
+;; #\a
+;; #\b
+;; ((44 9)(93 69))
+;; (car patterns) = first string of abbaabbbaa... whatever
+;; need a position indicator in string
+;; s : the string pattern
+;; i : indicator position or list of characters to match 
+;; what node are we at ?
+;;
+;; see what strings can we generate from tarray given string of a certain size
+;; how do we track 
+;;
+;; pattern string
+;;    ^ position at start of pattern
+;;
+;;  choices of avenues to go down 
+;; backtrack , if we are to backtrack easily we cannot mutate 
+;;
+
+(defun match (p)
+  (let ((clist (string-to-list p))
+	(id 0)
+	(level 0))
+    (catch 'matched
+      (match-recur clist id level nil))))
+
+(defun match-recur (clist id level matched)
+  (let ((ref (aref tarray id)))
+    ;;(format t "TARRAY REF ~a ~%" ref)    
+    (dolist (plist ref)
+      ;;(format t "PLIST REF ~a ~%" plist)
+      (match-plist clist plist level matched))))
 
 
+
+;; need to succeed on each entry of plist or else the node did not match
+(defun match-plist (clist plist level matched)
+  (catch 'out
+    (dolist (id2 plist)
+      (cond
+	((and (null clist)(null plist)(= level 0))
+	 (format t "~%< BELIEVED WE HAVE WE MATCHED ~a >~%" (reverse matched))
+	 (throw 'matched t))
+	((null plist) (throw 'out t))
+	((and (characterp id2)(null clist)) (throw 'out nil))
+	((and (characterp id2) (char= id2 (car clist)))
+	 (format t "~a" id2)
+	 (match-plist (cdr clist) (cdr plist) (+ level 1) (cons id2 matched)))
+	((and (characterp id2) (not (char= id2 (car clist))))
+	 (throw 'out nil)) ;; mis-match on chars	
+	((integerp id2) (match-recur clist id2 (+ level 1)))
+	(t (error "match-plist: error: what is this ?"))))))
+
+
+
+
+
+
+
+(defun run0 ()
+  (match (car patterns)))
+
+;; what avenues lead to either a letter A being produced
+;; or a letter B being produced
+;;
+;; this is an infinite graph
+;;
+;; is there a way to determine from static proof analysis if a given string and
+;; a tree of possible paths
+;; to determine ahead of time if it is even possible without exploration
+;; limited scope of solvable region of turing problem ?
+;;
+;;
+  
 
 
 
