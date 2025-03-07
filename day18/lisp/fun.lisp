@@ -7,16 +7,10 @@
 
 (in-package :aoc)
 
+#|
 
-
-
-(test test-demo
-  "This demonstrates the basic use of test and check."
-  (is (listp (list 1 2)))
-  (is (= 5 (+ 2 3)) "This should pass.")  ; &rest reason-args
-  (is (= 4 4.1) "~D and ~D are not = to each other." 4 4.1))
-;;(run! 'test-demo)
-
+parser ignores math precedence * + and simply does the next thing
+does the bracketed expressions first like in math 
 
 ;; read lines from input.txt and parse them , then execute them ...
 ;;(defun lines
@@ -31,6 +25,8 @@
 ;; nums
 ;; + add 
 ;; * product
+|#
+
 
 
 ;; convert string to a list of characters 
@@ -178,7 +174,49 @@
   (let ((toks (tokeniser s)))
     (parse-entry toks)))
 
-    
+
+;; define the operators , could left MUL as * , ADD as +
+(defun mul (x y)
+  (* x y))
+
+(defun add (x y)
+  (+ x y))
+
+;; execute code at runtime
+(defun interpret (s)
+  (eval (parse s)))
+
+;; open file and read in lines
+(defun get-lines (filename)
+  (with-open-file (stream filename :direction :input)
+    (let ((lines nil))
+      (catch 'done
+	(loop while t do
+	  (let ((line (read-line stream nil 'eof)))
+	    (cond
+	      ((eq line 'eof) (throw 'done (reverse lines)))
+	      (t (setq lines (cons line lines))))))))))
+
+(defparameter input-lines (get-lines "../input.txt"))
+
+;; mini test suite
+(test test-demo
+  "This demonstrates the basic use of test and check."
+  (is (= (interpret "1 + 2 * 3 + 4 * 5 + 6 ") 71))
+  (is (= (interpret "1 + (2 * 3) + (4 * (5 + 6)) ") 51))
+  (is (= (interpret "2 * 3 + (4 * 5)") 26))
+  (is (= (interpret "5 + (8 * 3 + 9 + 3 * 4 * 3)") 437))
+  (is (= (interpret "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))") 12240))
+  (is (= (interpret "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2") 13632))
+  )
+(run! 'test-demo)
+
+
+(defun part-1 ()
+  (apply #'+ (mapcar #'interpret input-lines)))
+
+
+
 
 ;; line columns
 
