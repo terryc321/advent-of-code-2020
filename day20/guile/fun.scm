@@ -1,13 +1,26 @@
 
+;; using guile 2d arrays rather than vector of vectors
 
 ;; in guile
 (use-modules (ice-9 rdelim)) ;; read line ?
+
 (use-modules (ice-9 pretty-print)) ;; show stuff nicely
+
 (define pp pretty-print) 
 
 ;; what to import , what not to import 
-(use-modules (srfi srfi-1)) ;; list 
-(use-modules (srfi srfi-9)) ;; record types - user defined records data structures
+(use-modules (srfi srfi-1)) ;; list
+
+;; (use-modules (srfi srfi-9)) ;; record types - user defined records data structures
+
+;; ==================================================================================
+;; assert X
+(define (warn m x)
+  (let ((out x))
+    (if (not out)
+	(format #t "~a : ~a " m x))))
+
+
 
 ;; ======= fix geiser/guile/emacs interaction 
 ;; M-x fix-keyboard () [] key swap 
@@ -49,6 +62,13 @@
 	       (loop (cons (list id (take xs 10)) (begin (set! xs (drop xs 10))
 							 tiles)))))))))))
 
+;; =================================================================================
+;; tile data type 
+;; (define-record-type <tile>
+;;   (make-tile id array)
+;;   tile?
+;;   (id      tile-id)
+;;   (array   tile-array))
 
 
 ;; ================================================================================
@@ -56,32 +76,83 @@
 ;; drawback using scheme is either find module that does what want
 ;; write it again from scratch over and over
 ;; ===============================================================================
-(define (make-grid wid hgt)
-  (let ((array (make-array #\. `(1 ,wid) `(1 ,hgt))))
-    array))
+(define (make-tile-data wid hgt)
+  (make-array #\. `(1 ,wid) `(1 ,hgt)))
 
+;; optional args ??
+(define (make-tile-array)
+  (make-tile-data 10 10))
+
+(define make-tile #f)
+
+(define tile-data #f)
+
+(define tile-id #f)
+
+(define tile? #f)
+
+;; secret sauce
+(let ((sauce (gensym "sauce")))
+  (letrec ((mk-t (lambda (id arr)
+      (warn "make-tile : expected id integer" (integer? id))
+      (warn "make-tile : expected arr array" (array? arr))
+      (list (lambda (x)(eq? x sauce)) id arr)))
+	   (t?  (lambda (p)
+		  (and (list? p)(= (length p) 3)((car p) sauce))))
+	   (t-d (lambda (p)
+		  (if (t? p) (third p) (error "t-d expected a tile"))))
+	   (t-id (lambda (p)
+		   (if (t? p) (second p) (error "t-id expected a tile")))))
+    (set! make-tile mk-t)
+    (set! tile? t?)
+    (set! tile-data t-d)
+    (set! tile-id t-id)))
+
+
+
+
+
+;;------------------------------------------------------------------------------
+  
 (define (grid-xy arr x y)
   (let* ((dim (array-dimensions arr))
 	 (max-x (second (first dim)))
 	 (max-y (second (second dim))))
-    ;; (assert (and (>= x 1)(<= x max-x)))
-    ;; (assert (and (>= y 1)(<= y max-y)))
+    (warn "grid-xy : x out of bounds " (and (>= x 1)(<= x max-x)))
+    (warn "grid-xy : y out of bounds " (and (>= y 1)(<= y max-y)))
+    (warn "grid-xy : expected an array" (array? arr))
     (array-ref arr x y)))
+
+(let ((g (make-tile-data 10 10)))
+  (grid-xy g 1 1))
+
+;; (let ((g (make-tile-data 10 10)))
+;;   (grid-xy g 0 0))
+
+
+;;------------------------------------------------------------------------------
 
 
 (define (grid-xy! arr x y v)
   (let* ((dim (array-dimensions arr))
 	 (max-x (second (first dim)))
 	 (max-y (second (second dim))))
-    ;; (assert (and (>= x 1)(<= x max-x)))
-    ;; (assert (and (>= y 1)(<= y max-y)))
+    (warn "grid-xy! : x out of bounds " (and (>= x 1)(<= x max-x)))
+    (warn "grid-xy! : y out of bounds " (and (>= y 1)(<= y max-y)))
+    (warn "grid-xy! : expected an array" (array? arr))
     (array-set! arr v x y)))
+
+;; ----------------------------------------------------------------------------
+(let ((g (make-tile-data 10 10)))
+  (grid-xy! g 1 1 3)
+  (format #t "g => ~a~%" g))
+;;------------------------------------------------------------------------------
 
 
 ;; join 10 strings together
 ;; ;; (apply string-append list-of-ten-strings) as input
 (define (convert->grid s)
-  (let* ((width 10)(height 10)(g (make-grid width height)))
+  (let* ((width 10)(height 10)(g (make-tile-data width height)))
     (let loop ((i 0)(x 1)(y 1))
       (cond
        ((> y height) g)
@@ -99,8 +170,13 @@
 (define tiles (split-tiles (read-lines "../example.txt")))
 
 
-(set! tiles (map (lambda (x) (list (car x) (convert->grid (apply string-append (car (cdr x))))))
-		 tiles))
+(define xtiles (map (lambda (x)
+		   (make-tile (car x)
+			      (convert->grid
+			       (apply string-append (car (cdr x))))))
+		    tiles))
+
+(set! tiles xtiles)
 
 
 ;; ============================================================================
@@ -113,7 +189,7 @@
 ;;   tile?
 ;;   (id    tile-id    set-tile-id!) 
 ;;   (array tile-array set-tile-array!))
-;; (make-record-type "tile" (list 3 (make-grid 10 10)))
+;; (make-record-type "tile" (list 3 (make-tile-data 10 10)))
 
 
 ;; ===========================================================================
@@ -133,28 +209,33 @@
 ;; (defun make-tile-array ()
 ;;   (make-array '(11 11) :initial-element #\.))
 
+;; (define (tile-id tt)
+;;   (car tt))
 
+;; (define (tile-array tt)
+;;   (car (cdr tt)))
 
-(define (tile-id tt)
-  (car tt))
-
-(define (tile-array tt)
-  (car (cdr tt)))
-
+;; ----------------------------------------------------------------------------
 (define (tile-xy tt x y)
-  ;; (assert (>= x 1))
-  ;; (assert (<= x 10))
-  ;; (assert (>= y 1))
-  ;; (assert (<= y 10))
-  (let ((arr (tile-array tt)))
-    (array-ref arr x y)))
+  (warn "tile-xy : expected tile tt" (tile? tt))
+  (let ((d (tile-data tt)))
+    (warn "tile-xy : expected tile data " (array? d))    
+    (array-ref d x y)))
 
-(define (make-tile-array)
-  (make-grid 10 10))
+;; ------------------------------------------------------------------------------
+
+
+  ;; ;; (assert (>= x 1))
+  ;; ;; (assert (<= x 10))
+  ;; ;; (assert (>= y 1))
+  ;; ;; (assert (<= y 10))
+  ;; (let ((arr (tile-array tt)))
+  ;;   (array-ref arr x y)))
+
 
 (define (show-tile tt)
-  (let ((id (car tt))
-	(g (car (cdr tt)))
+  (let ((id (tile-id tt))
+	(g (tile-data tt))
 	(width 10)(height 10))
     (format #t "~%Tile ~a:~%" id)
     (let loop-y ((y 1))
@@ -170,13 +251,14 @@
 	(format #t "~%")
 	(loop-y (+ y 1)))))))
 
+
 (define (test-tile)
   (let ((id 0)
 	(g (make-tile-array))
 	(width 10)(height 10))
   (let loop ((x 1)(y 1)(d 1))
       (cond
-       ((> y height) (list id g))
+       ((> y height) (make-tile id g))
        ((> x width) (loop 1 (+ y 1) d))
        (#t
 	(grid-xy! g x y d)
@@ -190,7 +272,7 @@
 	(width 10)(height 10))
     (let loop ((x 1)(y 1))
       (cond
-       ((> y height) (list id g))
+       ((> y height) (make-tile id g))
        ((> x width) (loop 1 (+ y 1)))
        (#t
 	(let ((d (tile-xy tt x y)))
@@ -204,7 +286,7 @@
 	(width 10)(height 10))
     (let loop ((x 1)(y 1))
       (cond
-       ((> y height) (list id g))
+       ((> y height) (make-tile id g))
        ((> x width) (loop 1 (+ y 1)))
        (#t
 	(let ((d (tile-xy tt x y)))
@@ -219,12 +301,13 @@
 	(width 10)(height 10))
     (let loop ((x 1)(y 1))
       (cond
-       ((> y height) (list id g))
+       ((> y height) (make-tile id g))
        ((> x width) (loop 1 (+ y 1)))
        (#t
 	(let ((d (tile-xy tt x y)))
 	  (grid-xy! g (+ 1 (- 10 x)) y d)
 	  (loop (+ x 1) y)))))))
+
 
 ;; flip vertical
 (define (flip-vert tt)
@@ -233,7 +316,7 @@
 	(width 10)(height 10))
     (let loop ((x 1)(y 1))
       (cond
-       ((> y height) (list id g))
+       ((> y height) (make-tile id g))
        ((> x width) (loop 1 (+ y 1)))
        (#t
 	(let ((d (tile-xy tt x y)))
@@ -247,47 +330,238 @@
 (define (tile= tt tt2)
   (array-equal? (tile-array tt) (tile-array tt2)))
 
-;; filter all unique tiles
-(define (tile-member? x xs)
-  ;; (format #t "tile-member? ~a ~a~%" x xs)
-  (cond
-   ((null? xs) #f)
-   (#t (let ((tt (car xs)))
-	 (cond
-	  ((tile= x tt) #t)
-	  (#t (tile-member? x (cdr xs))))))))
-
-
-(define (filter-tiles2 xs ys zs)
-  ;; (format #t "filter-tiles ~a ~a~%" xs ys)
-  (cond
-   ((null? xs) zs)
-   (#t (let ((tt (car xs)))
-	 (cond
-	  ((tile-member? tt ys) (filter-tiles2 (cdr xs) ys zs))
-	  ((tile-member? tt zs) (filter-tiles2 (cdr xs) ys zs))
-	  (#t (filter-tiles2 (cdr xs) ys (cons tt zs))))))))
-
-(define (filter-tiles xs ys)
-  (filter-tiles2 xs ys '()))
-
-
+;; =======================================================================
+;; wasteland
+;; =======================================================================
+;; for some reason trying to filter out and identify unique tiles was too much
+;; cognitive overload
+;; -----------------------------------------------------------------------
+;;
 ;; -----------------------------------------------------------------------
 ;; ------- BUG : cannot figure out why not filtering correctly , just infinite loops
 ;; --------
-;; ;; ======================= TO DO ===================================
-;; ;; generate all possible unique tiles from single tile
-;; ;; flip-v rotate-c
+;; ======================= TO DO ===================================
+;; ;; filter all unique tiles
+;; (define (tile-member? x xs)
+;;   ;; (format #t "tile-member? ~a ~a~%" x xs)
+;;   (cond
+;;    ((null? xs) #f)
+;;    (#t (let ((tt (car xs)))
+;; 	 (cond
+;; 	  ((tile= x tt) #t)
+;; 	  (#t (tile-member? x (cdr xs))))))))
+
+
+;; (define (filter-tiles2 xs ys zs)
+;;   ;; (format #t "filter-tiles ~a ~a~%" xs ys)
+;;   (cond
+;;    ((null? xs) zs)
+;;    (#t (let ((tt (car xs)))
+;; 	 (cond
+;; 	  ((tile-member? tt ys) (filter-tiles2 (cdr xs) ys zs))
+;; 	  ((tile-member? tt zs) (filter-tiles2 (cdr xs) ys zs))
+;; 	  (#t (filter-tiles2 (cdr xs) ys (cons tt zs))))))))
+
+;; (define (filter-tiles xs ys)
+;;   (filter-tiles2 xs ys '()))
+
+;; (define (filter-unique xs)
+;;   (letrec ((filter-unique2 (lambda (x ys)
+;; 			     (cond
+;; 			      ((null? ys) (list x))
+;; 			      (#t (let ((y (car ys)))
+;; 				    (cond
+;; 				     ((tile= x y) (filter-unique ys))
+;; 				     (#t (cons x (filter-unique ys))))))))))
+;;     (filter-unique2 (car xs) (cdr xs))))
+
+
+;; remove duplicates
+;; if xs null then empty list
+;; if xs not null then x is hd , ys is tail (possibly empty list)
+;;    map tile= over ys (possibly empty list)
+;;    filter any true
+;;    if any true - left with those that are true
+;;      meaning there is a tile that is the same as tile at hd of list
+;;      ie the hd tile is a duplicate !
+;;    if none true - left with empty list
+;;         then this tile is unique - so should keep this tile
+;;
+;;
+;; what remove-dups does , is the exact reverse , yet leaves 8 tiles 
+;; (filter (lambda (x) (if x #t #f)) '(#t #t #t #t))
+;; (filter (lambda (x) (if x #t #f)) '(#f #f #f #f))
+
+;; ;; * SUSPECT REMOVE-DUPS *
+;; (define (remove-dups xs)
+;;   (cond
+;;    ((null? xs) '())
+;;    (#t (let* ((x (car xs))
+;; 	      (ys (cdr xs))
+;; 	      (zs (map (lambda (p)(tile= p x)) ys))
+;; 	      (zs2 (filter (lambda (p) (if p #t #f)) zs)))
+;; 	 (cond
+;; 	  ((null? zs2) (remove-dups (cdr xs)))
+;; 	  (#t (cons x (remove-dups ys))))))))
+
+;; ;; * SUSPECT REMOVE-DUPS-3 *
+;; (define (remove-dups-3 f xs)
+;;   (cond
+;;    ((null? xs) '())
+;;    (#t (let* ((x (car xs))
+;; 	      (ys (cdr xs))
+;; 	      (zs (map (lambda (p)(f p x)) ys))
+;; 	      (zs2 (filter (lambda (p) (if p #t #f)) zs)))
+;; 	 (cond
+;; 	  ((null? zs2) (remove-dups-3 f (cdr xs)))
+;; 	  (#t (cons x (remove-dups-3 f ys))))))))
+
+;; ;;
+;; (define (remove-dups-2 xs)
+;;   (cond
+;;    ((null? xs) '())
+;;    (#t (let* ((x (car xs))
+;; 	      (ys (cdr xs))
+;; 	      (zs (map (lambda (p)(tile= p x)) ys))
+;; 	      (zs2 (filter (lambda (p) (if p #t #f)) zs)))
+;; 	 (cond
+;; 	  ((null? zs2) (cons x (remove-dups-2 (cdr xs))))
+;; 	  (#t (remove-dups-2 ys)))))))
+;; ------------------------------------------------------------------------------
+
+;; ==================================================================================
+;; takes comparison function f and a list of items xs 
+;; *SANCTIONED remove duplicates *
+(define (remove-dups f xs)
+  (cond
+   ((null? xs) '())
+   (#t (let* ((x (car xs))
+	      (ys (cdr xs))
+	      (zs (map (lambda (p)(f p x)) ys))
+	      (zs2 (filter (lambda (p) (if p #t #f)) zs)))
+	 (cond
+	  ((null? zs2) (cons x (remove-dups f (cdr xs))))
+	  (#t (remove-dups f ys)))))))
+;;-----------------------------------------------------------------------------------
+;; (remove-dups = (list 1 2 3 1 2 3 1 2 3 1 2 3))
+;; ---------------------------------------------------------------------------------
+
+;; ==================================================================================
+;; * LOOKS GOOD *
+;; remove all x from xs -- think purge 
+(define (remove-all feq a xs)
+  (cond
+   ((null? xs) '())
+   (#t (let* ((x (car xs))
+	      (ys (cdr xs)))
+	 (cond
+	  ((feq a x) (remove-all feq a (cdr xs)))
+	  (#t (cons x (remove-all feq a (cdr xs)))))))))
+;; ---------------------------------------------------------------------------------
+;; * TESTS LOOK GOOD *
+(remove-all = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))
+(remove-all = 2 (remove-all = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3)))
+(remove-all = 3 (remove-all = 2 (remove-all = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))))
+;; ---------------------------------------------------------------------------------
+
+
+;;===================================================================================
+;; remove one x from xs
+(define (remove-one feq a xs)
+  (cond
+   ((null? xs) '())
+   (#t (let* ((x (car xs))
+	      (ys (cdr xs)))
+	 (cond
+	  ((feq a x) (cdr xs))
+	  (#t (cons x (remove-one feq a (cdr xs)))))))))
+
+(remove-one = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))
+(remove-one = 2 (remove-one = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3)))
+(remove-one = 3 (remove-one = 2 (remove-one = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))))
+;;==================================================================================
+
+
+
+;; --- we can actually test if no duplicates are created
+;; --- we know there are 8 ways to fit the jigsaw ,
+;; --- almost like a 2 sided jigsaw piece with image reflected on both sides
+;; (equal? 
+;;  (remove-dups tile= (create tt))
+;;  (create tt)))
+
 ;; (define (all-tiles tt) 
-;;     (define (create xs)
-;;       (let* ((flipped (map flip-vert xs))
-;; 	     (rotated (map rotate-c xs))
-;; 	     (next (filter-tiles rotated (filter-tiles flipped xs))))
-;; 	(cond
-;; 	 ((= (length next) (length xs)) xs)
-;; 	 (#t (create next)))))
-;;     (create (list tt)))
-;; ;; ====================================================================
+;;     (define (create k)
+;;       (let* ((r1 (rotate-c k))
+;; 	     (r2 (rotate-c r1))
+;; 	     (r3 (rotate-c r2))
+;; 	     ;; (r4 (rotate-c r3))
+;; 	     ;; (r5 (rotate-c r4))
+
+;; 	     (f1 (flip-horz k))
+
+;; 	     (g1 (rotate-c f1))
+;; 	     (g2 (rotate-c g1))
+;; 	     (g3 (rotate-c g2))
+	     
+;; 	     ;; (f2 (flip-horz r2))
+;; 	     ;; (f3 (flip-horz r3))
+;; 	     ;; (f4 (flip-horz r4))
+;; 	     ;; (f5 (flip-horz r5))
+	     
+;; 	     ;; (g1 (flip-vert k))
+;; 	     ;; (g2 (flip-vert r2))
+;; 	     ;; (g3 (flip-vert r3))
+;; 	     ;; (g4 (flip-vert r4))
+;; 	     ;; (g5 (flip-vert r5))
+;; 	     )
+
+;; 	;;(list k r1 r2 r3 r4 r5  f1 f2 f3 f4 f5 g1 g2 g3 g4 g5)
+;; 	(list k r1 r2 r3 f1 g1 g2 g3)))
+;;     (create tt))
+;; ----------------------------------------------------------------------
+
+;; generate all possible unique tiles from single tile
+;; flip-v rotate-c
+(define (all-tiles tt) 
+    (define (create k)
+      (let* ((r1 (rotate-c k))
+	     (r2 (rotate-c r1))
+	     (r3 (rotate-c r2))
+	     ;; rotate 3 times
+	     (f1 (flip-horz k))
+	     ;; flip it
+	     ;; rotate another 3 times
+	     (g1 (rotate-c f1))
+	     (g2 (rotate-c g1))
+	     (g3 (rotate-c g2))
+	     )
+	(list k r1 r2 r3 f1 g1 g2 g3)))
+    (create tt))
+
+;; --------------------------------------------------------------------
+
+
+;; the filtering does not work?
+(define g (test-tile))
+;; (define h (filter-unique (all-tiles g)))
+;; (define i (remove-dups (all-tiles g)))
+;; (define i2 (remove-dups-2 (all-tiles g)))
+;; (define i3 (remove-dups-3 tile= (all-tiles g)))
+
+;; FAULTY remove duplicate algorithm
+(define j (remove-dups = (list 1 2 3 1 2 3 1 2 3 1 2 3)))
+;; (list 1 2 3 1 2 3 1 2 3)
+
+
+;; question -
+;; how can you be confident that the result of the expression give is what you expect
+
+;; when using tables 2d arrays not clear at all if equivalence function array-equal?
+;; is actually doing what it is supposed to, visually very difficult to acertain.
+;; cannot 'see' it , too much data
+
+;; ====================================================================
 
 
 
@@ -304,74 +578,332 @@
 ;; ;; A B C
 ;; ;; D E F
 ;; ;; G H I
-;; (defun factorial (n)
-;;   (let ((prod 1))
-;;     (loop for i from 1 to n do
-;;       (setq prod (* prod i)))
-;;     prod))
+(define (factorial n)
+  (define (factorial2 n m)
+    (cond
+     ((= n 1) m)
+     (#t (factorial2 (- n 1) (* n m)))))
+  (factorial2 n 1))
 
-;; #|
-
-;; can see brute force search will not be great as size of inquiry becomes large
-
-;; AOC> (factorial 9)
-;; 362880
-;; AOC> (factorial 144)
-;; 5550293832739304789551054660550388117999982337982762871343070903773209740507907044212761943998894132603029642967578724274573160149321818341878907651093495984407926316593053871805976798524658790357488383743402086236160000000000000000000000000000000000
-;; AOC> 
-;; |#
+;; factorial calculations
+(factorial 9)  362880
+(factorial 144)  5550293832739304789551054660550388117999982337982762871343070903773209740507907044212761943998894132603029642967578724274573160149321818341878907651093495984407926316593053871805976798524658790357488383743402086236160000000000000000000000000000000000
 	    
-
    
 ;; ;;(defun tile-east (tt) nil)
 
-;; ;; tile-east-west X Y
-;; ;;     . . X    Y . . 
-;; ;;     . . X    Y . .
-;; ;;     . . X    Y . .
-;; (defun tile-east-west (tt tt2)
-;;   (catch 'out
-;;     (loop for i from 1 to 10 do
-;;       (when (not (char= (tile-xy tt 10 i) (tile-xy tt2 1 i)))
-;; 	(throw 'out nil)))	
-;;     t))
-
-;; ;; tile-west-east X Y
-;; ;;     . . Y    X . . 
-;; ;;     . . Y    X . .
-;; ;;     . . Y    X . .
-;; (defun tile-west-east (tt tt2)
-;;   (tile-east-west tt2 tt))
-
-
-
-;; ;; tile-south-north X Y
-;; ;; . . .
-;; ;; . . . 
-;; ;; X X X 
-;; ;;
-;; ;; Y Y Y
-;; ;; . . .
-;; ;; . . .
-;; (defun tile-south-north (tt tt2)
-;;   (catch 'out
-;;     (loop for i from 1 to 10 do
-;;       (when (not (char= (tile-xy tt i 10) (tile-xy tt2 i 1)))
-;; 	(throw 'out nil)))	
-;;     t))
-
-;; ;; tile-north-south X Y
-;; ;; . . .
-;; ;; . . . 
-;; ;; X X X 
-;; ;;
-;; ;; Y Y Y
-;; ;; . . .
-;; ;; . . .
-;; (defun tile-north-south (tt tt2)
-;;   (tile-south-north tt2 tt))
+;; ===========================================================================
+;; Question : is the east tile compatible with west tile ?
+;; tile-east-west X Y
+;;    EAST-TILE  WEST-TILE
+;;     . . X    Y . . 
+;;     . . X    Y . .
+;;     . . X    Y . .
+;;
+;; we know tiles are 10 x 10 tiles
+(define (tile-east-west? tt tt2)
+  (let loop ((i 1))
+    (cond
+     ((> i 10) #t)
+     (#t
+      (let ((c (char=? (tile-xy tt 10 i) (tile-xy tt2 1 i))))
+	(cond
+	 (c (loop (+ i 1)))
+	 (#t #f)))))))
 
 
+;; tile-west-east X Y
+;;     . . Y    X . . 
+;;     . . Y    X . .
+;;     . . Y    X . .
+(define (tile-west-east? tt tt2)
+  (tile-east-west? tt2 tt))
+
+;; ---------------------------------------------------------------------------
+(let ((g (car tiles)))
+  (tile-east-west? g (flip-horz g)))
+
+;; ============================================================================
+;; tile-south-north X Y
+;; . . .
+;; . . . 
+;; X X X 
+;;
+;; Y Y Y
+;; . . .
+;; . . .
+(define (tile-south-north? tt tt2)
+  (call/cc
+   (lambda (exit)
+     (let loop ((i 1))
+       (cond
+	((> i 10) #t)
+	(#t
+	 (let ((c (char=? (tile-xy tt i 10) (tile-xy tt2 i 1))))
+	   (if (not c) (exit #f)
+	       (loop (+ i 1)))))))
+     #t)))
+
+
+;; tile-north-south X Y
+;; . . .
+;; . . . 
+;; X X X 
+;;
+;; Y Y Y
+;; . . .
+;; . . .
+(define (tile-north-south? tt tt2)
+  (tile-south-north? tt2 tt))
+
+;; -------------------------------------------------------------------------------
+(let ((g (car tiles)))
+  (tile-east-west? g (flip-horz g)))
+
+;; ================================================================================
+;; * SIDE EFFECTS version of MAP *
+;; apply f to each element of xs , but do not build a list at all
+(define (fmap f xs)
+  (cond
+   ((null? xs) xs)
+   (#t (f (car xs))
+       (fmap f (cdr xs)))))
+;; --------------------------------------------------------------------------------
+
+;; ================================================================================
+;; (defmacro incf (x)
+;;   (let ((s (gensym "s")))
+;;     `(let ((,s ,x))
+;;        (set! ,s (+ ,s 1)))))
+(defmacro incf (x)
+  `(set! ,x (+ ,x 1)))
+
+(let ((x 1))
+  (incf x)
+  (list x x ))
+;;----------------------------------------------------------------------------------
+
+
+;;(assert "false" #f)
+
+;; ----------------------------------------------------------------------------------
+
+;; ================================================================================
+;; try construct a 3 x 3 of tiles that satisfy example puzzle
+;;
+;; A B C
+;; D E F
+;; G H I
+;;
+;; guile >  (ftest)
+;; fcount value after should be 9 ! --- factorial of 9  --- (factorial 9)   362880
+;; nope ! 
+;;
+;; pick a tile from avaialble tiles
+;; pick an orientation for that tile tiself
+;;
+;; ---------------------------------------------------------------------------------
+
+(define f0count 0)
+
+(define f1count 0)
+
+(define f2count 0)
+
+(define f3count 0)
+
+(define f4count 0)
+
+(define f5count 0)
+
+(define f6count 0)
+
+(define f7count 0)
+
+(define f8count 0)
+
+(define f9count 0)
+
+(define solution-count 0)
+
+(define (freset)
+  (set! solution-count 0)
+  (set! f0count 0)
+  (set! f1count 0)
+  (set! f2count 0)
+  (set! f3count 0)
+  (set! f4count 0)
+  (set! f5count 0)
+  (set! f6count 0)
+  (set! f7count 0)
+  (set! f8count 0)
+  (set! f9count 0))
+
+(define ftiles tiles)
+
+(define (ftest)
+  (freset)
+  (f0 tiles)
+  (format #t "fcounts = :0)~a :1)~a :2)~a :3)~a :4)~a :5)~a :6)~a :7)~a :8)~a :9)~a ~%"
+	  f0count f1count f2count f3count f4count f5count f6count f7count f8count f9count))
+
+(define (f0 tiles)
+  (define (g x)
+    (h (remove-one tile= x tiles) x))
+  (define (h tiles x)
+    (fmap (lambda (s) (f1 tiles s)) (all-tiles x)))
+  (incf f0count)
+  (begin (fmap g tiles) #f)
+  #f)
+
+;; nothing much to compare A to 
+;; A 
+(define (f1 tiles a)
+  (define (g x)
+    (h (remove-one tile= x tiles) a x))
+  (define (h tiles a x)
+    (fmap (lambda (s) (f2 tiles a s)) (all-tiles x)))
+  (assert "f1 a is a tile" (tile? a))
+  (assert "f1 tiles length is -1 original tiles" (= (length tiles) (- (length ftiles) 1)))
+  (incf f1count)
+  (begin (fmap g tiles) #f)
+  #f)
+
+
+;; A   *B*
+(define (f2 tiles a b)
+  (define (g x)
+    (h (remove-one tile= x tiles) a b x))
+  (define (h tiles a b x)
+    (fmap (lambda (s) (f3 tiles a b s)) (all-tiles x)))
+  (assert "f2 b is a tile" (tile? b))
+  (assert "f2 tiles length is -2 original tiles" (= (length tiles) (- (length ftiles) 2)))
+  (incf f2count)
+  (if (tile-east-west? a b)
+      (begin (fmap g tiles) #f)
+      #f))
+
+;; A   B   *C*
+(define (f3 tiles a b c)
+  (define (g x)
+    (h (remove-one tile= x tiles) a b c x))
+  (define (h tiles a b c x)
+    (fmap (lambda (s) (f4 tiles a b c s)) (all-tiles x)))
+  (incf f3count)
+  (assert "f3 c is a tile" (tile? c))
+  (assert "f3 tiles length is -3 original tiles" (= (length tiles) (- (length ftiles) 3)))
+  (if (tile-east-west? b c)
+      (begin (fmap g tiles) #f)
+      #f))
+
+
+;; A   B   C
+;; *D*     
+(define (f4 tiles a b c d)
+  (define (g x)
+    (h (remove-one tile= x tiles) a b c d x))
+  (define (h tiles a b c d x)
+    (fmap (lambda (s) (f5 tiles a b c d s)) (all-tiles x)))
+  (assert "f4 tiles length is -4 original tiles" (= (length tiles) (- (length ftiles) 4)))
+  (incf f4count)
+  (if (tile-south-north? a d)
+      (begin (fmap g tiles) #f)
+      #f))
+
+;; A   B   C
+;; D   *E*   
+(define (f5 tiles a b c d e)
+  (define (g x)
+    (h (remove-one tile= x tiles) a b c d e x))
+  (define (h tiles a b c d e x)
+    (fmap (lambda (s) (f6 tiles a b c d e s)) (all-tiles x)))
+  (incf f5count)
+  (if (and (tile-east-west? d e)
+	   (tile-south-north? b e))  
+      (begin (fmap g tiles) #f)
+      #f))
+
+;; A   B   C
+;; D   E   *F*
+(define (f6 tiles a b c d e f)
+  (define (g x)
+    (h (remove-one tile= x tiles) a b c d e f x))
+  (define (h tiles a b c d e f x)
+    (fmap (lambda (s) (f7 tiles a b c d e f s)) (all-tiles x)))
+  (incf f6count)
+  (if (and (tile-east-west? e f)
+	   (tile-south-north? c f))  
+      (begin (fmap g tiles) #f)
+      #f))
+
+
+
+;; A   B   C
+;; D   E   F
+;; *G* 
+(define (f7 tiles a b c d e f g)
+  (define (g x)
+    (h (remove-one tile= x tiles) a b c d e f g x))
+  (define (h tiles a b c d e f g x)
+    (fmap (lambda (s) (f8 tiles a b c d e f g s)) (all-tiles x)))
+  (incf f7count)
+  (if (tile-south-north? d g)
+      (begin (fmap g tiles) #f)
+      #f))
+
+;; A   B   C
+;; D   E   F
+;; G  *H* 
+(define (f8 tiles a b c d e f g h)
+  (define (g x)
+    (f9 (remove-one tile= x tiles) a b c d e f g h x))
+  (incf f8count)
+  (if (and (tile-east-west? g h)
+	   (tile-south-north? e h))  
+      (begin (fmap g tiles) #f)
+      #f))
+
+
+
+;; this should be last one 
+;; A   B   C
+;; D   E   F
+;; G   H   *I* 
+(define (f9 tiles a b c d e f g h i)
+  (if (null? tiles) 'ok (error "f9 should empty list tiles"))
+  (incf f9count)
+  (if (and (tile-east-west? h i)
+	   (tile-south-north? f i))
+      (f10 a b c d e f g h i)
+      #f))
+
+(define (f10 a b c d e f g h i)
+  (incf solution-count)
+  (format #t "~%solution ~a :~" solution-count)
+  (format #t "~a ~%" (map tile-id (list a b c)))
+  (format #t "~a ~%" (map tile-id (list d e f)))
+  (format #t "~a ~%" (map tile-id (list g h i)))
+  (format #t "~%"))
+
+    
+
+
+;; -----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+;; --------------------------------------------------------------------------------
+;; this was the common lisp solution which worked for 3x3 but blew stack at 12x12
 ;; ;; for the given size of problem 3 x 3 
 ;; ;; A B C
 ;; ;; D E F
