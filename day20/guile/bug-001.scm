@@ -1,6 +1,6 @@
 ;; BUG: contains a subtle shadow bug on Line 916 due to a b c d... g but g also local proc !!
 ;; using guile 2d arrays rather than vector of vectors
-
+;; BUG :: second subtle shadow bug on Line 942 : f8 ... h ...  but h also local proc!!
 ;; in guile
 (use-modules (ice-9 rdelim)) ;; read line ?
 
@@ -912,6 +912,8 @@ j
 ;; ============================== FCUT ====================================
 (define (fcut7 tiles a b c d e f g)
   (format #t "fcut7 : ~a ~%" (map tile-id (list a b c d e f g))))
+
+
 
 ;; subtle shadow bug g is a tile 
 ;; A   B   C

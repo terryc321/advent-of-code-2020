@@ -21,6 +21,11 @@
 	(format #t "~a : ~a " m x))))
 
 
+(defmacro assert (m x)
+  (if (not x) (error (string-append "assert fail : " m) x)))
+
+
+;; (assert "random test" #f)
 
 ;; ======= fix geiser/guile/emacs interaction 
 ;; M-x fix-keyboard () [] key swap 
@@ -100,9 +105,9 @@
 	   (t?  (lambda (p)
 		  (and (list? p)(= (length p) 3)((car p) sauce))))
 	   (t-d (lambda (p)
-		  (if (t? p) (third p) (error "t-d expected a tile"))))
+		  (if (t? p) (third p) (error "t-ds expected a tile" p))))
 	   (t-id (lambda (p)
-		   (if (t? p) (second p) (error "t-id expected a tile")))))
+		   (if (t? p) (second p) (error "t-ids expected a tile")))))
     (set! make-tile mk-t)
     (set! tile? t?)
     (set! tile-data t-d)
@@ -217,9 +222,9 @@
 
 ;; ----------------------------------------------------------------------------
 (define (tile-xy tt x y)
-  (warn "tile-xy : expected tile tt" (tile? tt))
+  (assert "tile-xy : expected tile tt" (tile? tt))
   (let ((d (tile-data tt)))
-    (warn "tile-xy : expected tile data " (array? d))    
+    (assert "tile-xy : expected tile data " (array? d))    
     (array-ref d x y)))
 
 ;; ------------------------------------------------------------------------------
@@ -252,6 +257,7 @@
 	(loop-y (+ y 1)))))))
 
 
+
 (define (test-tile)
   (let ((id 0)
 	(g (make-tile-array))
@@ -264,6 +270,9 @@
 	(grid-xy! g x y d)
 	(loop (+ x 1) y (+ d 1)))))))
 
+;; ------------------------------------------------------------------------------
+(tile? (test-tile))
+;; ------------------------------------------------------------------------------
 
 ;; clockwise 
 (define (rotate-c tt)
@@ -279,6 +288,11 @@
 	  (grid-xy! g (+ 1 (- 10 y)) x d)
 	  (loop (+ x 1) y)))))))
 
+;; ------------------------------------------------------------------------------
+(tile? (rotate-c (test-tile)))
+;; ------------------------------------------------------------------------------
+
+
 ;; counter clockwise
 (define (rotate-cc tt)
   (let ((id (tile-id tt))
@@ -292,6 +306,10 @@
 	(let ((d (tile-xy tt x y)))
 	  (grid-xy! g y (+ 1 (- 10 x)) d)
 	  (loop (+ x 1) y)))))))
+
+;; ------------------------------------------------------------------------------
+(tile? (rotate-cc (test-tile)))
+;; ------------------------------------------------------------------------------
 
 
 ;; flip horizontal
@@ -309,6 +327,11 @@
 	  (loop (+ x 1) y)))))))
 
 
+;; ------------------------------------------------------------------------------
+(tile? (flip-horz (test-tile)))
+;; ------------------------------------------------------------------------------
+
+
 ;; flip vertical
 (define (flip-vert tt)
   (let ((id (tile-id tt))
@@ -323,12 +346,22 @@
 	  (grid-xy! g x (+ 1 (- 10 y)) d)
 	  (loop (+ x 1) y)))))))
 
+;; ------------------------------------------------------------------------------
+(tile? (flip-vert (test-tile)))
+;; ------------------------------------------------------------------------------
+
 
 ;; tile same if they have same array data
 ;; what does array-equal? mean
 ;; guile> ,describe array-equal?
 (define (tile= tt tt2)
-  (array-equal? (tile-array tt) (tile-array tt2)))
+  (array-equal? (tile-data tt) (tile-data tt2)))
+
+;; ------------------------------------------------------------------------------
+(tile= (flip-vert (flip-vert (test-tile))) (test-tile))
+(tile= (flip-horz (flip-horz (test-tile))) (test-tile))
+(tile= (rotate-c (rotate-c (rotate-c (rotate-c (test-tile))))) (test-tile))
+;; ------------------------------------------------------------------------------
 
 ;; =======================================================================
 ;; wasteland
@@ -443,7 +476,7 @@
 	  ((null? zs2) (cons x (remove-dups f (cdr xs))))
 	  (#t (remove-dups f ys)))))))
 ;;-----------------------------------------------------------------------------------
-;; (remove-dups = (list 1 2 3 1 2 3 1 2 3 1 2 3))
+(remove-dups = (list 1 2 3 1 2 3 1 2 3 1 2 3))
 ;; ---------------------------------------------------------------------------------
 
 ;; ==================================================================================
@@ -457,10 +490,13 @@
 	 (cond
 	  ((feq a x) (remove-all feq a (cdr xs)))
 	  (#t (cons x (remove-all feq a (cdr xs)))))))))
+
 ;; ---------------------------------------------------------------------------------
 ;; * TESTS LOOK GOOD *
 (remove-all = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))
+
 (remove-all = 2 (remove-all = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3)))
+
 (remove-all = 3 (remove-all = 2 (remove-all = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))))
 ;; ---------------------------------------------------------------------------------
 
@@ -477,7 +513,9 @@
 	  (#t (cons x (remove-one feq a (cdr xs)))))))))
 
 (remove-one = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))
+
 (remove-one = 2 (remove-one = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3)))
+
 (remove-one = 3 (remove-one = 2 (remove-one = 1 (list 1 2 3 1 2 3 1 2 3 1 2 3))))
 ;;==================================================================================
 
@@ -544,6 +582,11 @@
 
 ;; the filtering does not work?
 (define g (test-tile))
+
+g
+
+(tile? g)
+
 ;; (define h (filter-unique (all-tiles g)))
 ;; (define i (remove-dups (all-tiles g)))
 ;; (define i2 (remove-dups-2 (all-tiles g)))
@@ -551,6 +594,12 @@
 
 ;; FAULTY remove duplicate algorithm
 (define j (remove-dups = (list 1 2 3 1 2 3 1 2 3 1 2 3)))
+
+j
+
+;; (4 1 2 3 )
+
+
 ;; (list 1 2 3 1 2 3 1 2 3)
 
 
@@ -586,8 +635,15 @@
   (factorial2 n 1))
 
 ;; factorial calculations
-(factorial 9)  362880
-(factorial 144)  5550293832739304789551054660550388117999982337982762871343070903773209740507907044212761943998894132603029642967578724274573160149321818341878907651093495984407926316593053871805976798524658790357488383743402086236160000000000000000000000000000000000
+(factorial 9)
+
+
+;; 362880
+
+
+(factorial 144)
+
+;; 5550293832739304789551054660550388117999982337982762871343070903773209740507907044212761943998894132603029642967578724274573160149321818341878907651093495984407926316593053871805976798524658790357488383743402086236160000000000000000000000000000000000
 	    
    
 ;; ;;(defun tile-east (tt) nil)
@@ -601,6 +657,7 @@
 ;;     . . X    Y . .
 ;;
 ;; we know tiles are 10 x 10 tiles
+
 (define (tile-east-west? tt tt2)
   (let loop ((i 1))
     (cond
@@ -668,7 +725,11 @@
    ((null? xs) xs)
    (#t (f (car xs))
        (fmap f (cdr xs)))))
+
 ;; --------------------------------------------------------------------------------
+
+;; --------------------------------------------------------------------------------
+
 
 ;; ================================================================================
 ;; (defmacro incf (x)
@@ -770,6 +831,7 @@
   #f)
 
 
+
 ;; A   *B*
 (define (f2 tiles a b)
   (define (g x)
@@ -788,7 +850,7 @@
   (define (g x)
     (h (remove-one tile= x tiles) a b c x))
   (define (h tiles a b c x)
-    (fmap (lambda (s) (f4 tiles a b c s)) (all-tiles x)))
+    (fmap (lambda (s) (f4 tiles a b c s)) (all-tiles x))) 
   (incf f3count)
   (assert "f3 c is a tile" (tile? c))
   (assert "f3 tiles length is -3 original tiles" (= (length tiles) (- (length ftiles) 3)))
@@ -797,18 +859,21 @@
       #f))
 
 
+
 ;; A   B   C
 ;; *D*     
 (define (f4 tiles a b c d)
   (define (g x)
     (h (remove-one tile= x tiles) a b c d x))
   (define (h tiles a b c d x)
-    (fmap (lambda (s) (f5 tiles a b c d s)) (all-tiles x)))
+    (fmap (lambda (s) (f5 tiles a b c d s)) (all-tiles x))) 
   (assert "f4 tiles length is -4 original tiles" (= (length tiles) (- (length ftiles) 4)))
   (incf f4count)
   (if (tile-south-north? a d)
       (begin (fmap g tiles) #f)
       #f))
+
+
 
 ;; A   B   C
 ;; D   *E*   
@@ -816,13 +881,20 @@
   (define (g x)
     (h (remove-one tile= x tiles) a b c d e x))
   (define (h tiles a b c d e x)
-    (fmap (lambda (s) (f6 tiles a b c d e s)) (all-tiles x)))
+    (fmap (lambda (s) (f6 tiles a b c d e s)) (all-tiles x))) ;; FCUT
   (incf f5count)
   (if (and (tile-east-west? d e)
 	   (tile-south-north? b e))  
       (begin (fmap g tiles) #f)
       #f))
 
+;; ============================== FCUT ====================================
+(define (fcut6 tiles a b c d e f)
+  (format #t "fcut6 : ~a ~%" (map tile-id (list a b c d e f))))
+
+
+
+  
 ;; A   B   C
 ;; D   E   *F*
 (define (f6 tiles a b c d e f)
@@ -837,32 +909,51 @@
       #f))
 
 
+;; ============================== FCUT ====================================
+(define (fcut7 tiles a b c d e f g)
+  (format #t "fcut7 : ~a ~%" (map tile-id (list a b c d e f g))))
 
+;; subtle shadow bug g is a tile 
 ;; A   B   C
 ;; D   E   F
 ;; *G* 
 (define (f7 tiles a b c d e f g)
-  (define (g x)
+  (define (g! x)
     (h (remove-one tile= x tiles) a b c d e f g x))
   (define (h tiles a b c d e f g x)
     (fmap (lambda (s) (f8 tiles a b c d e f g s)) (all-tiles x)))
   (incf f7count)
-  (if (tile-south-north? d g)
-      (begin (fmap g tiles) #f)
-      #f))
+  ;; (format #t "f7 : testing condition : d+g tiles ? ~a~%" (list (tile? d) (tile? g)))
+  (let ((con (tile-south-north? d g)))
+    ;;(format #t "f7 condition is ~a ~%" con)
+  (if con
+      (begin (fmap g! tiles) #f)
+      #f)))
+
+
+;; ============================== FCUT ====================================
+(define (fcut8 tiles a b c d e f g h)
+  (format #t "fcut8 : ~a ~%" (map tile-id (list a b c d e f g h))))
+
 
 ;; A   B   C
 ;; D   E   F
 ;; G  *H* 
 (define (f8 tiles a b c d e f g h)
-  (define (g x)
-    (f9 (remove-one tile= x tiles) a b c d e f g h x))
+  (define (g! x)
+    (h! (remove-one tile= x tiles) a b c d e f g h x))
+  (define (h! tiles a b c d e f g h x)
+    (fmap (lambda (s) (f9 tiles a b c d e f g h s)) (all-tiles x)))
   (incf f8count)
   (if (and (tile-east-west? g h)
 	   (tile-south-north? e h))  
-      (begin (fmap g tiles) #f)
+      (begin (fmap g! tiles) #f)
       #f))
 
+
+;; ============================== FCUT ====================================
+(define (fcut9 tiles a b c d e f g h i)
+  (format #t "fcut9 : ~a ~%" (map tile-id (list a b c d e f g h i))))
 
 
 ;; this should be last one 
@@ -874,18 +965,29 @@
   (incf f9count)
   (if (and (tile-east-west? h i)
 	   (tile-south-north? f i))
-      (f10 a b c d e f g h i)
+      (f10 tiles a b c d e f g h i) ;; fcut
       #f))
 
-(define (f10 a b c d e f g h i)
+;; ============================== FCUT ====================================
+(define (fcut10 tiles a b c d e f g h i)
+  (format #t "fcut10 : ~a ~%" (map tile-id (list a b c d e f g h i))))
+
+
+;; A   B   C
+;; D   E   F
+;; G   H   I   ta * tc * tg * ti 
+(define (f10 tiles a b c d e f g h i)
   (incf solution-count)
-  (format #t "~%solution ~a :~" solution-count)
-  (format #t "~a ~%" (map tile-id (list a b c)))
-  (format #t "~a ~%" (map tile-id (list d e f)))
-  (format #t "~a ~%" (map tile-id (list g h i)))
-  (format #t "~%"))
+  (let ((product (apply * (map tile-id (list a c g i)))))
+    (format #t "~%solution ~a : corner product is ~a ~%" solution-count product)
+    (format #t "~a ~%" (map tile-id (list a b c)))
+    (format #t "~a ~%" (map tile-id (list d e f)))
+    (format #t "~a ~%" (map tile-id (list g h i)))
+    (format #t "~%")))
+
 
     
+
 
 
 ;; -----------------------------------------------------------------------------

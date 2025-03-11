@@ -1401,38 +1401,105 @@ solution 2 :  ((#<procedure 7fb9d6002020 at /home/terry/code/advent-of-code/adve
 (butfirst '(a b c))
 (butlast '(a b c))
 
-(define large-solution2 '( '(3433 2837 3613 2411 3643 1811 2671 3301 3881 1213 1013 3833 )
-			  '(1973 3307 1667 3853 3559 1559 3769 3169 2707 2281 1307 3943 )
-			  '(3319 1087 2273 1423 1889 3617 3257 3529 2447 1109 2393 2917 )
-			  '(2749 3821 2579 1949 1999 2081 2477 3217 2963 2521 1151 2791 )
-			  '(2801 2833 1873 1471 3517 2683 1097 2939 2531 2659 2719 1693 )
-			  '(3083 1091 3607 1009 3691 3359 3079 2351 2339 1103 3119 1051 )
-			  '(1451 1901 1289 2207 1709 2161 1979 3019 3583 2633 2063 1367 )
-			  '(2843 1447 2693 1381 2371 2137 1181 2053 2221 3947 3877 2851 )
-			  '(1867 1753 1847 1723 1223 1511 2909 2027 3547 1231 1163 2543 )
-			  '(3767 2731 1789 3701 2857 2239 1579 2089 1039 2143 2677 3413 )
-			  '(3491 1583 1567 2957 2557 1409 2269 1291 2417 2549 1063 1429 )
-			  '(2011 3793 2287 2423 1997 2003 2399 2099 3109 2111 1279 3001 )
+(define large-solution2 '((3433 2837 3613 2411 3643 1811 2671 3301 3881 1213 1013 3833 )
+			  (1973 3307 1667 3853 3559 1559 3769 3169 2707 2281 1307 3943 )
+			  (3319 1087 2273 1423 1889 3617 3257 3529 2447 1109 2393 2917 )
+			  (2749 3821 2579 1949 1999 2081 2477 3217 2963 2521 1151 2791 )
+			  (2801 2833 1873 1471 3517 2683 1097 2939 2531 2659 2719 1693 )
+			  (3083 1091 3607 1009 3691 3359 3079 2351 2339 1103 3119 1051 )
+			  (1451 1901 1289 2207 1709 2161 1979 3019 3583 2633 2063 1367 )
+			  (2843 1447 2693 1381 2371 2137 1181 2053 2221 3947 3877 2851 )
+			  (1867 1753 1847 1723 1223 1511 2909 2027 3547 1231 1163 2543 )
+			  (3767 2731 1789 3701 2857 2239 1579 2089 1039 2143 2677 3413 )
+			  (3491 1583 1567 2957 2557 1409 2269 1291 2417 2549 1063 1429 )
+			  (2011 3793 2287 2423 1997 2003 2399 2099 3109 2111 1279 3001 )
 			  ))
 
 
+;; tile is 10 x 10 
+;; borderless tile is 9x9 
 (define (show-borderless-row id row)
   (let* ((tt (tile-with-id id))
 	 (arr (tile-data tt)))
     (let loop ((x 1)(y row))
       (cond
        ((<= x 1) (loop (+ x 1) y))
-       ((>= x 12) #f)
-       ((<= row 1) (loop 1 (+ y 1)))
-       ((>= row 12) #f)
+       ((>= x 10) #f)
+       ((<= y 1) #f)
+       ((>= y 10) #f)
        (#t (let ((ch (array-ref arr x y)))
 	     (format #t "~a" ch)
 	     (loop (+ x 1) y)))))))
 
+;; (show-borderless-row 3433 1)
 
-(show-borderless-row 3433 1)
+;; show one row from tile id
+(define (test1) (show-borderless-row 3433 2))
 
-(+ 1 2)
+;; show row 2 from all ids in a list
+(define (test2) (fmap (lambda (id)(show-borderless-row id 2))
+		      (car large-solution2)))
+
+;; given this list , show all row 2 from this list
+;;(3433 2837 3613 2411 3643 1811 2671 3301 3881 1213 1013 3833 )
+(define (test3)
+  (fmap (lambda (id) (show-borderless-row id 2))
+	'(3433 2837 3613 2411 3643 1811 2671 3301 3881 1213 1013 3833 )))
+
+
+;; given this list , show all rows 2 thu 9
+;; 1 2 3 4 5 6 7 8 9 10  each tile width of 10
+;; * 2 3 4 5 6 7 8 9 *   if remove 1st and 10th from sequence get 2 thru 9 left over
+;; if each tile is 8 in width , there are 12 tiles across , width should be 96
+;;; similarly height should be 96 also, by similar reasoning
+(define (test4) (fmap (lambda (row)
+			(format #t "~%")
+			(fmap (lambda (id)(show-borderless-row id row))
+			      (car large-solution2)))
+		      '(2 3 4 5 6 7 8 9)))
+
+
+
+(define (test5) (fmap (lambda (row)
+			(format #t "~%")
+			(fmap (lambda (id)(show-borderless-row id row))
+			      '(3433 2837 3613 2411 3643 1811 2671 3301 3881 1213 1013 3833 )))
+		      (cdr (cdr (iota 10)))))
+
+;; pass in tile-id line , sequence of tile id's
+(define (test6 tid-line) (fmap (lambda (row)
+				 (format #t "~%")
+				 (fmap (lambda (id)(show-borderless-row id row))
+				       tid-line))
+			       (cdr (cdr (iota 10)))))
+
+
+(define (test7) (test6 (car large-solution2)))
+
+(define (test8)
+  (fmap (lambda (tt-line) (test6 tt-line)) large-solution2)
+  (format #t "~%~%"))
+
+
+
+;; (+ 1 2)
+;; iota 10 is 0 .. 9
+;; i need 2 .. 8
+(define (all-together)
+  (fmap (lambda (sol) 
+	  (fmap
+	   (lambda(y) ;; apply show-borderless row 
+	     (fmap (lambda (x)
+		     (show-borderless-row x y))
+		   sol)
+	     (format #t "~%"))
+	   (cdr (cdr (iota 10))))
+	  )
+	large-solution2))
+
+
+
+
 
 
 
