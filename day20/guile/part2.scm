@@ -1401,6 +1401,7 @@ solution 2 :  ((#<procedure 7fb9d6002020 at /home/terry/code/advent-of-code/adve
 (butfirst '(a b c))
 (butlast '(a b c))
 
+;; 8 different ways this particular solution can come out
 (define large-solution2 '((3433 2837 3613 2411 3643 1811 2671 3301 3881 1213 1013 3833 )
 			  (1973 3307 1667 3853 3559 1559 3769 3169 2707 2281 1307 3943 )
 			  (3319 1087 2273 1423 1889 3617 3257 3529 2447 1109 2393 2917 )
@@ -1414,6 +1415,19 @@ solution 2 :  ((#<procedure 7fb9d6002020 at /home/terry/code/advent-of-code/adve
 			  (3491 1583 1567 2957 2557 1409 2269 1291 2417 2549 1063 1429 )
 			  (2011 3793 2287 2423 1997 2003 2399 2099 3109 2111 1279 3001 )
 			  ))
+
+(define (lake)
+  (fmap (lambda (ids)	  
+	  (fmap (lambda (row)
+		  (format #t "~%")
+		  (fmap (lambda (x)
+			  (show-borderless-row x row)) ids))
+		'(2 3 4 5 6 7 8 9)))
+	  large-solution2)
+  (format #t "~%"))
+
+
+
 
 
 ;; tile is 10 x 10 
