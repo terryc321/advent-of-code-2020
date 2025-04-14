@@ -8,6 +8,8 @@ import System.IO
 
 -- import Data.String
 
+-- for reference i used this 
+-- https://williamyaoh.com/posts/2019-04-11-cheatsheet-to-regexes-in-haskell.html
 -- added regular expression for integer extraction
 import Text.Regex.TDFA
 import Text.Regex.TDFA.Text ()
@@ -40,11 +42,9 @@ foo2 = getAllTextMatches (("john anne yifan" :: String) =~ ("[a-z]+" :: String))
 extractInts str =  let re = "[0-9]+" 
                    in map (\x -> read x :: Int)
                       (getAllTextMatches ((str :: String) =~ (re::String))::[String])
-                      
 
-                      
+-- avoid maybe's like plague
 
-                                                                                 
 -- extractInts :: String -> Maybe (Int, Int)
 -- extractInts str =
 --   case (str =~ "(-?[0-9]+).*?(-?[0-9]+)" :: [[String]]) of
@@ -78,6 +78,7 @@ isMask s = length s == 43 && take 4 s == "mask"
 maskCode :: String -> String
 maskCode s = drop 7 s
 
+
 -- indentation is important in haskell
 
 -- total problem input stats
@@ -100,14 +101,13 @@ maskCode s = drop 7 s
 --- assume mask is well formed and comes first
 --- collect lines acc 
 collect [] acc = acc
-collect (h:t) acc = collect2 t h [] acc
-
+collect (h:t) acc = collect2 t (maskCode h) [] acc
 
 --collect2 lines mask mems acc
 collect2 [] mask mems acc = acc ++ [[(mask,mems)]]                            
 collect2 (h:t) mask mems acc =
   if isMask h then collect (h:t) (acc ++ [[(mask,mems)]])
-  else let mem = h
+  else let mem = extractInts h -- found a mem here
        in collect2 t mask (mems ++ [mem]) acc                     
 
 -- (define collect2 (lambda (lines mask mems acc)		   
@@ -166,8 +166,9 @@ main = do
   -- putStrLn (show [[(1::Int),2,3],[4,5,6]] )
   showMasks ls
   putStrLn "lets see if we can do this with runCollect"
+  let rc = runCollect ls
   mapM_ (\x -> do print x
-                  putStrLn "") (runCollect ls)
+                  putStrLn "") rc 
     
   -- putStrLn ("these are masks " ++ (show (map isMask ls)))
   -- p (\x -> putStrLn ("in>" ++ x)) ls
