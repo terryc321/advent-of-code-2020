@@ -1,8 +1,73 @@
+
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Data.Typeable -- typeOf
 import System.IO
 
+-- import Data.String
+
+-- added regular expression for integer extraction
+import Text.Regex.TDFA
+import Text.Regex.TDFA.Text ()
+import Text.Regex.TDFA.String ()
+
+-- import Text.Regex.TDFA ((=~))
+-- import Text.Regex.TDFA.String ()  -- just to make sure the String instance is available
+
+-- this is all to learn how to get 2 numbers from a string in haskell , painful...
+-- haskell is well confused about how to solve String , ByteString , Text ... whatever
+mailRegex = "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+" :: String
+mailRegex1 :: Bool
+mailRegex1 = ("my email is email@email.com" :: String) =~ mailRegex 
+
+
+-- --- this is fine in the repl , but balks in file code
+-- "div[attr=1234]" =~ "div\\[([a-z]+)=([^]]+)\\]" :: (String, String, String, [String])
+-- -- as is this
+-- getAllTextMatches ("john anne yifan" =~ "[a-z]+") :: [String]
+
+fooRe = "[a-z]+" :: String
+foo :: [String]
+foo = getAllTextMatches (("john anne yifan" :: String) =~ fooRe)
+
+-- in order to get this into one line it needs a fair amount of type declaration
+-- otherwise it will balk seriously
+foo2 = getAllTextMatches (("john anne yifan" :: String) =~ ("[a-z]+" :: String)) :: [String]
+
+-- ok so finally finished getting some integers from a string - at last
+extractInts str =  let re = "[0-9]+" 
+                   in map (\x -> read x :: Int)
+                      (getAllTextMatches ((str :: String) =~ (re::String))::[String])
+                      
+
+                      
+
+                                                                                 
+-- extractInts :: String -> Maybe (Int, Int)
+-- extractInts str =
+--   case (str =~ "(-?[0-9]+).*?(-?[0-9]+)" :: [[String]]) of
+--     [[_, a, b]] -> Just (read a, read b)
+--     _           -> Nothing
+
+-- extractInts :: String -> Maybe (Int, Int)
+-- extractInts str =
+--   let matches :: [[String]]
+--       matches = str =~ "(-?[0-9]+).*?(-?[0-9]+)"
+--   in case matches of
+--        [[_, a, b]] -> Just (read a, read b)
+--        _           -> Nothing
+
+
+-- extractInts :: String -> Maybe (Int, Int)
+-- extractInts str =
+--   let re = "^.*?(-?[0-9]+).*?(-?[0-9]+)$" 
+--   in  case (str =~ re :: (String, String, String, [String])) of
+--       (_, _, _, [a, b]) -> Just (read a, read b)
+--       _                 -> Nothing
+
+    
 -- True False True && False
 -- poor mans parser
 isMask :: String -> Bool
