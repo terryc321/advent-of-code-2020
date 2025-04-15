@@ -81,38 +81,53 @@ F78 S4 F3 F37 ))
 ;; some default start position
 (define pos-x 0)
 (define pos-y 0)
-(define dir 0) ;; east 
 
+(define way-x 0)
+(define way-y 0)
+
+  
 (define (move-north! n)
-  (set! pos-y (- pos-y n)))
+  (set! way-y (+ way-y n)))
 (define (move-south! n)
-  (set! pos-y (+ pos-y n)))
+  (set! way-y (- way-y n)))
+
 (define (move-east! n)
-  (set! pos-x (+ pos-x n)))
+  (set! way-x (+ way-x n)))
 (define (move-west! n)
-  (set! pos-x (- pos-x n)))
+  (set! way-x (- way-x n)))
 
-(define (move-left! n) 
-  (set! dir (let ((d (modulo (- dir n) 360)))
-	      (cond
-	       ((= d 360) 0)
-	       (#t d)))))
-
-(define (move-right! n)
-  (set! dir (let ((d (modulo (+ dir n) 360)))
-	      (cond
-	       ((= d 360) 0)
-	       (#t d)))))
-
-(define (move-forward! n)
+;; rotate waypoint around the ship 
+(define (move-left! n)
+  (assert (>= n 0)) ;; positive n
   (cond
-   ((= dir 0) (move-east! n))
-   ((= dir 90) (move-south! n))
-   ((= dir 180) (move-west! n))
-   ((= dir 270) (move-north! n))
-   (#t (format #t "~%move-forward : bad dir ~a~%" dir)
-       (error "horror"))))
+   ((= n 0) 'done)
+   (#t
+    (let ((wx way-x)(wy way-y))
+      (set! way-x (- wy))
+      (set! way-y wx)
+      (move-left! (- n 90))))))
 
+    
+(define (move-right! n)
+  (assert (>= n 0)) ;; positive n
+  (cond
+   ((= n 0) 'done)
+   (#t
+    (let ((wx way-x)(wy way-y))
+      (set! way-x wy)
+      (set! way-y (- wx))
+      (move-right! (- n 90))))))
+
+
+  
+
+  
+;; n multiples of where waypoint is from ship
+(define (move-forward! n)
+  (set! pos-x (+ pos-x (* n way-x)))
+  (set! pos-y (+ pos-y (* n way-y))))
+  
+  
 ;; take a symbol like 'f78 split into f and 78
 (define eat
   (lambda (sym)
@@ -136,15 +151,18 @@ F78 S4 F3 F37 ))
 (define (manhattan x y)
   (+ (abs x)(abs y)))
 
+;; waypoint 10 units east , 1 unit north
 (define (run)
   (set! pos-x 0)
   (set! pos-y 0)
-  (set! dir 0)
+  (set! way-x 10)
+  (set! way-y 1)  
+
   (map eat input)
   (manhattan pos-x pos-y))
 
-;; mistake on east west movement
-;; > [run]
-;; 2879  ...... ACCEPTED answer!
-;; 
+
+;; > (run)
+;; 178986 ....... ACCEPTED answer!
+
 
