@@ -78,7 +78,6 @@ isMask s = length s == 43 && take 4 s == "mask"
 maskCode :: String -> String
 maskCode s = drop 7 s
 
-
 -- indentation is important in haskell
 
 -- total problem input stats
@@ -125,7 +124,63 @@ collect2 (h:t) mask mems acc =
 -- (define (run-collect)
 --   (collect input '()))
 runCollect input = collect input []
-                                         
+
+-- https://stackoverflow.com/questions/9166148/how-to-implement-decimal-to-binary-conversion
+-- extra step binarz 0 produced [] empty list , so fixed it to make it make [0] instead
+-- other than that just a copy
+binarz :: Integer -> [Integer]
+binarz 0 = [0]
+binarz x = binarz2 x 
+
+binarz2 :: Integer -> [Integer]
+binarz2 0 = []
+binarz2 n = binarz2 (div n 2) ++ [(mod n 2)] 
+
+-- pads list to 36 elements long if not already
+pad36 xs = let len = length xs
+               diff = 36 - len
+           in (paddiff diff) ++ xs
+
+paddiff 0 = []
+paddiff n = 0 : (paddiff (n - 1))
+
+-- pad an integer to binary representation to 36 elements long
+encodeVal n = pad36 (binarz n)
+
+--- combineMask mask encoded-value -> masked-value
+--- mask head mh tail mt ,encoded value head eh tail et
+--- combineMask (mh:mt) (eh:et) =  
+combineMask [] [] = []
+combineMask ('X':mt) (eh:et) =  eh : (combineMask mt et)
+combineMask ('0':mt) (eh:et) =  0 : (combineMask mt et)
+combineMask ('1':mt) (eh:et) =  1 : (combineMask mt et)
+
+compute mask val = combineMask mask (encodeVal val)
+
+-- given mask value convert to single number
+-- list rep -> integer
+maskValue2 [] p s = s
+maskValue2 (0:t) p s = maskValue2 t (p*2) s
+maskValue2 (1:t) p s = maskValue2 t (p*2) (s + p)
+
+maskValue xs = maskValue2 (reverse xs) 1 0
+
+-- test driven development
+m1 = maskValue (compute "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X" 11)
+m2 = maskValue (compute "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X" 101)
+m3 = maskValue (compute "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X" 0)
+-- expect m1 = 73
+-- expect m2 = 101
+-- expect m3 = 64
+
+-- mem[8]=11
+-- mem 8 is the destination unchanged , 11 is masked then value computed from list rep
+
+---
+-- mask "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X"
+-- beforeVal = 11 
+-- dest 8
+
 
 -- print and show are closely related 
 -- ghci> :t print
