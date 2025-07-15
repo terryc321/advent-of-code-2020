@@ -2,11 +2,6 @@
 ;; chicken scheme
 
 #|
-
-branch 
-
-identify regex on a non cyclic input 
-
 any language need a front end parser  - generic requirement for all languages 
 load file into string
 parse ID: ID ID ALT ID ID 
@@ -79,7 +74,7 @@ have to parse this line
 
 ;; word count??
 (define sslines
-  (let ((input-lines (with-input-from-file "../example1.txt" ;;"../input.txt"
+  (let ((input-lines (with-input-from-file "../input.txt"
 		       (lambda ()
 			 (read-lines)))))
     (letrec ((split-input-lines (lambda ()
@@ -309,164 +304,250 @@ wheere do lambdas and restarts come in ?
 		  (format #t "~a" (reverse fhist))
 		  (restarts)))))
 
-(define (show c)
-  (format #t "~a" c))
-
-
 #|
+------------- none above will work ------
+but if use branch.scm we can do some code generation
+alt alternate branch is expanded
+(br 4) is branch , really we should just name it to
+(br 0) is entry point
 
-In terms of matching a regular expression against a specific input
-in a sequence like f2 -> f3 f4
-f3 has to succed so f4 can begin otherwise no match and waste to continue since already
-know cannot match
+CPS format
 
-want have a way to run alternate paths
-want to see what
+here is example given in s expression format
+br 0 is first element
+br 1 is second element
+... etc
 
+br 0 is entry point to check expression for
 
-f1 -> f2 | f5
-f2 -> f3 f4
-f3 -> a
-f4 -> b
-f5 -> f6 f7
-f6 -> c
-f7 -> d
-f8 -> f9 f10
-f9 -> e
-f10 -> f
+#(
+br0  (alt (seq (br 4) (br 1) (br 5)))
+br1  (alt (seq (br 2) (br 3)) (seq (br 3) (br 2)))
+br2  (alt (seq (br 4) (br 4)) (seq (br 5) (br 5)))
+br3  (alt (seq (br 4) (br 5)) (seq (br 5) (br 4)))
+br4  (alt (seq (char #\a)))
+br5  (alt (seq (char #\b))))
 
-|#
-(define (f1) 
-  (f2)
-  (f5)
-  (f8))
-
-(define (f2) 
-  (f3) (f4))
-
-(define (f3) 
-  (show #\a))
-
-(define (f4) 
-  (show #\b))
-
-(define (f5) 
-  (f6)
-  (f7))
-
-(define (f6) 
-  (show #\c))
-  
-(define (f7) 
-  (show #\d))
-
-(define (f8) 
-  (f9)
-  (f10))
-
-(define (f9) 
-  (show #\e))
-  
-(define (f10) 
-  (show #\f))
-
-
-;; rewrite in CPS form so we can have explicit control of the continuation
-
-#|
-
-In terms of matching a regular expression against a specific input
-in a sequence like f2 -> f3 f4
-f3 has to succed so f4 can begin otherwise no match and waste to continue since already
-know cannot match
-
-want have a way to run alternate paths
-want to see what
-
-
-g1 -> g2 | g5 | g8   : alternative produce "ab" "cd" or "ef" correctly
-g2 -> g3 g4
-g3 -> a
-g4 -> b
-g5 -> g6 g7
-g6 -> c
-g7 -> d
-g8 -> g9 g10
-g9 -> e
-g10 -> f
-
-i to be index into string matching against
-hist to be string produced so far
-
-kgood - matched character ok
-kbad  - no match
-
-str - characters expect to be matched in order
-
+sequences can be 1 2 or 3 in length , arbitrary be nice
 |#
 
-(define (show2 c str kgood kbad)
+
+(define (comp reg)
+  (format #t "reg = ~a : car reg = ~a ~%" reg (car reg))
   (cond
-   ((null? str) (kbad str))
-   ((char=? c (car str)) (kgood (cdr str)))
-   (#t (kbad str))))
+   ((eq? (car reg) 'alt) (comp-alt reg))
+   ((eq? (car reg) 'seq) (comp-seq reg))
+   ((eq? (car reg) 'char) (comp-char reg))
+   ((eq? (car reg) 'dummy) reg)
+   (#t 'how?)))
 
-;; g1 is alternative between g2 g5 g8
-;; if g2 succeeds - good accept it through kgood
-(define (g1 str kgood kbad) 
-  (g2 str
-      kgood
-      (lambda (str2) 
-        (g5 str
-	    kgood
+
+;; how many alternates do we have?
+(define (comp-alt expr)
+  (let* ((args (cdr expr))
+	 (len (length args)))
+    (cond
+     ((= len 1) (comp-alt-1 args))
+     ((= len 2) (comp-alt-2 args))
+     ((= len 3) (comp-alt-3 args))
+     (#t (error "comp-alt ")))))
+
+(define (comp-alt-1 reg)
+  (comp reg))
+
+(comp '(alt (dummy)))
+(comp (vector-ref svector 0))
+
+#|
+
+having trouble compiling s-expression of regex into CPS chicken code
+
+br0 : (alt (seq (br 4) (br 1) (br 5)))
+simplify alternate of one branch is just the branch itself - discard alternate
+           (seq (br 4) (br 1) (br 5))
+|#
+
+(define (br0 str good bad)
+  (br4 str
+       (lambda (str2)
+	 (br1 str2
+	      (lambda (str3)
+		(br5 str3 good bad))
+	      bad))
+       bad))
+
+
+#|
+br1 : (alt (seq (br 2) (br 3)) (seq (br 3) (br 2)))
+
+two switch alternate sequence
+
+|#
+(define (br1 str good bad)
+  (letrec ((alt2 (lambda (str2 good bad)
+		   (br3 str2
+			(lambda (str3)
+			  (br2 str3 good bad))
+			bad))))
+    (br2 str
+	 (lambda (str2)
+	   (br3 str2
+		good
+		(lambda (str2) (alt2 str good bad))))
+	 (lambda (str2) ;; trick - ignore what pass in
+	   (alt2 str good bad)))))
+
+#|
+br0 : (alt (seq (br 4) (br 1) (br 5)))
+simplify alternate of one branch is just the branch itself - discard alternate
+           (seq (br 4) (br 1) (br 5))
+a sequence of 3 things
+|#
+
+(define (make-br-alt03 i1 i2 i3 i4)
+  (let ((br1 (string->symbol (format #f "br~a" i1)))
+	(br2 (string->symbol (format #f "br~a" i2)))
+	(br3 (string->symbol (format #f "br~a" i3)))
+	(br4 (string->symbol (format #f "br~a" i4))))
+    `(define (,br1 str good bad)
+       (,br2 str
 	    (lambda (str2)
-	      (g8 str kgood kbad))))))
+	      (,br3 str2
+		   (lambda (str3)
+		     (,br4 str3 good bad))
+		   bad))
+	    bad))))
 
-;; g2 is a sequence
-(define (g2 str kgood kbad) 
-  (g3 str
-      (lambda (str2) (g4 str2 kgood kbad))
-      kbad))
 
-(define (g3 str kgood kbad) 
-  (show2 #\a str kgood kbad))
+(define br0-expr (make-br-alt03 0 4 1 5))
+br0-expr
+(eval br0-expr)
 
-(define (g4 str kgood kbad) 
-  (show2 #\b str kgood kbad))
 
-;; g5 sequence
-(define (g5 str kgood kbad) 
-  (g6 str
-      (lambda (str2) (g7 str2 kgood kbad))
-      kbad))
+#|
+br1  (alt (seq (br 2) (br 3)) (seq (br 3) (br 2)))
+br2  (alt (seq (br 4) (br 4)) (seq (br 5) (br 5)))
+br3  (alt (seq (br 4) (br 5)) (seq (br 5) (br 4)))
 
-(define (g6 str kgood kbad) 
-  (show2 #\c str kgood kbad))
-  
-(define (g7 str kgood kbad) 
-  (show2 #\d str kgood kbad))
+|#
+(define (make-br-alt i1 i2 i3 i4 i5)
+  (let ((br1 (string->symbol (format #f "br~a" i1)))
+	(br2 (string->symbol (format #f "br~a" i2)))
+	(br3 (string->symbol (format #f "br~a" i3)))
+	(br4 (string->symbol (format #f "br~a" i4)))
+	(br5 (string->symbol (format #f "br~a" i5))))
+    `(define (,br1 str good bad)
+       (letrec ((alt2 (lambda (str2 good bad)
+			(,br4 str2
+			      (lambda (str3)
+				(,br5 str3 good bad))
+			      bad))))
+	 (,br2 str
+	       (lambda (str2)
+		 (,br3 str2
+		       good
+		       (lambda (str3) (alt2 str good bad))))
+	       (lambda (str2) ;; trick - ignore what pass in
+		 (alt2 str good bad)))))))
 
-;; g8 sequence
-(define (g8 str kgood kbad) 
-  (g9 str
-      (lambda (str2) (g10 str2 kgood kbad))
-      kbad))
+(define br1-expr (make-br-alt 1 2 3 3 2))
+(define br2-expr (make-br-alt 2 4 4 5 5))
+(define br3-expr (make-br-alt 3 4 5 5 4))
 
-(define (g9 str kgood kbad) 
-  (show2 #\e str kgood kbad))
-  
-(define (g10 str kgood kbad) 
-  (show2 #\f str kgood kbad))
+(pp br1-expr)
+(pp br2-expr)
+(pp br3-expr)
 
-;; ginit - entry point give it a string to match against
-(define (ginit s)
+(eval br1-expr)
+(eval br2-expr)
+(eval br3-expr)
+
+#|
+br4  (alt (seq (char #\a)))
+br5  (alt (seq (char #\b))))
+
+br4 : "a"
+br5 : "b"
+
+|#
+
+(define (br4 str good bad)
+  (match-char #\a str good bad))
+
+(define (br5 str good bad)
+  (match-char #\b str good bad))
+
+(define (match-char c str good bad)
+  (cond
+   ((null? str) (bad str))
+   ((char=? c (car str)) (good (cdr str)))
+   (#t (bad str))))
+
+;; btest - test if string matches 
+(define (btest s)
   (let ((str (string->list s)))
-    (g1 str
+    (br0 str
 	(lambda (str2) (cond
 			((null? str2) (format #t "ok ~a~%" str2) #t)
 			(#t (format #t "fail not consumed all input ~a~%" str2) #f)))
 	(lambda (str2) (format #t "fail ~a~%" str2) #f))))
 
+(btest "ababbb")
+(btest "bababa")
+(btest "abbbab")
+(btest "aaabbb")
+(btest "aaaabbb")
+
+;; (alt (seq (br 4) (br 1) (br 5)))
+#|
+tvector to keep track of all expressions we have successfully compiled
+
+|#
+
+(define tvector (make-vector (+ 1 highest-id) #f))
+
+(import matchable)
+
+
+#|
+template matching procedures be nice
+
+pattern 1 : (alt (seq (br 9) (br 109)))
+i index in svector / tvector
+x expression found in svector at index i
+result : #f or 
+|#
+(define (p1? i x)
+  (and (list? x)
+       (eq? (first x) 'alt)
+       (let ((x2 (second x)))
+	 (and (eq? (first x2) 'seq)
+	      (eq? (first (second x2)) 'br)
+	      (eq? (first (third x2)) 'br)))))
+
+(p1? 0 '(alt (seq (br 9) (br 109))))
+
+;; we can match it now 
+(match '(alt (seq (br 9) (br 109)))
+  ([alt (seq (br n1) (br n2))]  (list n1 n2))
+  (_ #f))
+
+
+
+
+
+
+  
+
+
+			   
+
+
+
+     
+     
+     
+  
 
 
 

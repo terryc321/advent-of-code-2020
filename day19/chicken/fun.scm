@@ -304,8 +304,199 @@ wheere do lambdas and restarts come in ?
 		  (format #t "~a" (reverse fhist))
 		  (restarts)))))
 
+#|
+------------- none above will work ------
+but if use branch.scm we can do some code generation
+alt alternate branch is expanded
+(br 4) is branch , really we should just name it to
+(br 0) is entry point
+
+CPS format
+
+here is example given in s expression format
+br 0 is first element
+br 1 is second element
+... etc
+
+br 0 is entry point to check expression for
+
+#(
+br0  (alt (seq (br 4) (br 1) (br 5)))
+br1  (alt (seq (br 2) (br 3)) (seq (br 3) (br 2)))
+br2  (alt (seq (br 4) (br 4)) (seq (br 5) (br 5)))
+br3  (alt (seq (br 4) (br 5)) (seq (br 5) (br 4)))
+br4  (alt (seq (char #\a)))
+br5  (alt (seq (char #\b))))
+
+sequences can be 1 2 or 3 in length , arbitrary be nice
+|#
 
 
+(define (comp reg)
+  (format #t "reg = ~a : car reg = ~a ~%" reg (car reg))
+  (cond
+   ((eq? (car reg) 'alt) (comp-alt reg))
+   ((eq? (car reg) 'seq) (comp-seq reg))
+   ((eq? (car reg) 'char) (comp-char reg))
+   ((eq? (car reg) 'dummy) reg)
+   (#t 'how?)))
+
+
+;; how many alternates do we have?
+(define (comp-alt expr)
+  (let* ((args (cdr expr))
+	 (len (length args)))
+    (cond
+     ((= len 1) (comp-alt-1 args))
+     ((= len 2) (comp-alt-2 args))
+     ((= len 3) (comp-alt-3 args))
+     (#t (error "comp-alt ")))))
+
+(define (comp-alt-1 reg)
+  (comp reg))
+
+(comp '(alt (dummy)))
+(comp (vector-ref svector 0))
+
+#|
+
+having trouble compiling s-expression of regex into CPS chicken code
+
+br0 : (alt (seq (br 4) (br 1) (br 5)))
+simplify alternate of one branch is just the branch itself - discard alternate
+           (seq (br 4) (br 1) (br 5))
+|#
+
+(define (br0 str good bad)
+  (br4 str
+       (lambda (str2)
+	 (br1 str2
+	      (lambda (str3)
+		(br5 str3 good bad))
+	      bad))
+       bad))
+
+
+#|
+br1 : (alt (seq (br 2) (br 3)) (seq (br 3) (br 2)))
+
+two switch alternate sequence
+
+|#
+(define (br1 str good bad)
+  (letrec ((alt2 (lambda (str2 good bad)
+		   (br3 str2
+			(lambda (str3)
+			  (br2 str3 good bad))
+			bad))))
+    (br2 str
+	 (lambda (str2)
+	   (br3 str2
+		good
+		(lambda (str2) (alt2 str good bad))))
+	 (lambda (str2) ;; trick - ignore what pass in
+	   (alt2 str good bad)))))
+
+#|
+br0 : (alt (seq (br 4) (br 1) (br 5)))
+simplify alternate of one branch is just the branch itself - discard alternate
+           (seq (br 4) (br 1) (br 5))
+a sequence of 3 things
+|#
+
+(define (make-br-alt03 i1 i2 i3 i4)
+  (let ((br1 (string->symbol (format #f "br~a" i1)))
+	(br2 (string->symbol (format #f "br~a" i2)))
+	(br3 (string->symbol (format #f "br~a" i3)))
+	(br4 (string->symbol (format #f "br~a" i4))))
+    `(define (,br1 str good bad)
+       (,br2 str
+	    (lambda (str2)
+	      (,br3 str2
+		   (lambda (str3)
+		     (,br4 str3 good bad))
+		   bad))
+	    bad))))
+
+
+(define br0-expr (make-br-alt03 0 4 1 5))
+br0-expr
+(eval br0-expr)
+
+
+#|
+br1  (alt (seq (br 2) (br 3)) (seq (br 3) (br 2)))
+br2  (alt (seq (br 4) (br 4)) (seq (br 5) (br 5)))
+br3  (alt (seq (br 4) (br 5)) (seq (br 5) (br 4)))
+
+|#
+(define (make-br-alt i1 i2 i3 i4 i5)
+  (let ((br1 (string->symbol (format #f "br~a" i1)))
+	(br2 (string->symbol (format #f "br~a" i2)))
+	(br3 (string->symbol (format #f "br~a" i3)))
+	(br4 (string->symbol (format #f "br~a" i4)))
+	(br5 (string->symbol (format #f "br~a" i5))))
+    `(define (,br1 str good bad)
+       (letrec ((alt2 (lambda (str2 good bad)
+			(,br4 str2
+			      (lambda (str3)
+				(,br5 str3 good bad))
+			      bad))))
+	 (,br2 str
+	       (lambda (str2)
+		 (,br3 str2
+		       good
+		       (lambda (str3) (alt2 str good bad))))
+	       (lambda (str2) ;; trick - ignore what pass in
+		 (alt2 str good bad)))))))
+
+(define br1-expr (make-br-alt 1 2 3 3 2))
+(define br2-expr (make-br-alt 2 4 4 5 5))
+(define br3-expr (make-br-alt 3 4 5 5 4))
+
+(pp br1-expr)
+(pp br2-expr)
+(pp br3-expr)
+
+(eval br1-expr)
+(eval br2-expr)
+(eval br3-expr)
+
+#|
+br4  (alt (seq (char #\a)))
+br5  (alt (seq (char #\b))))
+
+br4 : "a"
+br5 : "b"
+
+|#
+
+(define (br4 str good bad)
+  (match-char #\a str good bad))
+
+(define (br5 str good bad)
+  (match-char #\b str good bad))
+
+(define (match-char c str good bad)
+  (cond
+   ((null? str) (bad str))
+   ((char=? c (car str)) (good (cdr str)))
+   (#t (bad str))))
+
+;; btest - test if string matches 
+(define (btest s)
+  (let ((str (string->list s)))
+    (br0 str
+	(lambda (str2) (cond
+			((null? str2) (format #t "ok ~a~%" str2) #t)
+			(#t (format #t "fail not consumed all input ~a~%" str2) #f)))
+	(lambda (str2) (format #t "fail ~a~%" str2) #f))))
+
+(btest "ababbb")
+(btest "bababa")
+(btest "abbbab")
+(btest "aaabbb")
+(btest "aaaabbb")
 
 
 
