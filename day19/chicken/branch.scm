@@ -2,6 +2,9 @@
 ;; chicken scheme
 
 #|
+
+branch 
+
 any language need a front end parser  - generic requirement for all languages 
 load file into string
 parse ID: ID ID ALT ID ID 
@@ -304,18 +307,166 @@ wheere do lambdas and restarts come in ?
 		  (format #t "~a" (reverse fhist))
 		  (restarts)))))
 
+(define (show c)
+  (format #t "~a" c))
 
 
+#|
+
+In terms of matching a regular expression against a specific input
+in a sequence like f2 -> f3 f4
+f3 has to succed so f4 can begin otherwise no match and waste to continue since already
+know cannot match
+
+want have a way to run alternate paths
+want to see what
 
 
+f1 -> f2 | f5
+f2 -> f3 f4
+f3 -> a
+f4 -> b
+f5 -> f6 f7
+f6 -> c
+f7 -> d
+f8 -> f9 f10
+f9 -> e
+f10 -> f
 
+|#
+(define (f1) 
+  (f2)
+  (f5)
+  (f8))
 
+(define (f2) 
+  (f3) (f4))
 
+(define (f3) 
+  (show #\a))
 
-     
-     
-     
+(define (f4) 
+  (show #\b))
+
+(define (f5) 
+  (f6)
+  (f7))
+
+(define (f6) 
+  (show #\c))
   
+(define (f7) 
+  (show #\d))
+
+(define (f8) 
+  (f9)
+  (f10))
+
+(define (f9) 
+  (show #\e))
+  
+(define (f10) 
+  (show #\f))
+
+
+;; rewrite in CPS form so we can have explicit control of the continuation
+
+#|
+
+In terms of matching a regular expression against a specific input
+in a sequence like f2 -> f3 f4
+f3 has to succed so f4 can begin otherwise no match and waste to continue since already
+know cannot match
+
+want have a way to run alternate paths
+want to see what
+
+
+g1 -> g2 | g5 | g8   : alternative produce "ab" "cd" or "ef" correctly
+g2 -> g3 g4
+g3 -> a
+g4 -> b
+g5 -> g6 g7
+g6 -> c
+g7 -> d
+g8 -> g9 g10
+g9 -> e
+g10 -> f
+
+i to be index into string matching against
+hist to be string produced so far
+
+kgood - matched character ok
+kbad  - no match
+
+str - characters expect to be matched in order
+
+|#
+
+(define (show2 c str kgood kbad)
+  (cond
+   ((null? str) (kbad str))
+   ((char=? c (car str)) (kgood (cdr str)))
+   (#t (kbad str))))
+
+
+
+;; g1 is alternative between g2 g5 g8
+;; if g2 succeeds - good accept it through kgood
+(define (g1 str kgood kbad) 
+  (g2 str
+      kgood
+      (lambda (str2) 
+        (g5 str
+	    kgood
+	    (lambda (str2)
+	      (g8 str kgood kbad))))))
+
+;; g2 is a sequence
+(define (g2 str kgood kbad) 
+  (g3 str
+      (lambda (str2) (g4 str2 kgood kbad))
+      kbad))
+
+(define (g3 str kgood kbad) 
+  (show2 #\a str kgood kbad))
+
+(define (g4 str kgood kbad) 
+  (show2 #\b str kgood kbad))
+
+;; g5 sequence
+(define (g5 str kgood kbad) 
+  (g6 str
+      (lambda (str2) (g7 str2 kgood kbad))
+      kbad))
+
+(define (g6 str kgood kbad) 
+  (show2 #\c str kgood kbad))
+  
+(define (g7 str kgood kbad) 
+  (show2 #\d str kgood kbad))
+
+;; g8 sequence
+(define (g8 str kgood kbad) 
+  (g9 str
+      (lambda (str2) (g10 str2 kgood kbad))
+      kbad))
+
+(define (g9 str kgood kbad) 
+  (show2 #\e str kgood kbad))
+  
+(define (g10 str kgood kbad) 
+  (show2 #\f str kgood kbad))
+
+;; ginit - entry point give it a string to match against
+(define (ginit s)
+  (let ((str (string->list s)))
+    (g1 str
+	(lambda (str2) (cond
+			((null? str2) (format #t "ok ~a~%" str2) #t)
+			(#t (format #t "fail not consumed all input ~a~%" str2) #f)))
+	(lambda (str2) (format #t "fail ~a~%" str2) #f))))
+
 
 
 
