@@ -1,44 +1,64 @@
 # day2
 
-FIXME: description
+puzzle if a character appears in some range from min to max number of times .
 
-## Installation
+data parsed using antlr java library which clojure can easily access.
 
-Download from https://example.com/FIXME.
+using antlr seems fairly easy ,
 
-## Usage
+admittedly its a simple one shot parse - if it works okay , but what if it does not , what
+chance is there of error correction or taking some alternative action ?
 
-FIXME: explanation
+hands in air : shrug :
 
-    $ java -jar day2-0.1.0-standalone.jar [args]
+```
+include [clj-antlr "0.2.14"] in project.clj dependencies
+```
 
-## Options
 
-FIXME: listing of options this app accepts.
+The Day2 Grammar file we created , not used to antlr at moment , but it did its job great.
+bit of trial and error.
 
-## Examples
+```
 
-...
+/*
 
-### Bugs
+int - int char: chars+ 
 
-...
+*/
+grammar Day2;
 
-### Any Other Sections
-### That You Think
-### Might be Useful
+/* dash INT WS ALPHA COLON WS alphas */
+top:
+ INT DASH INT WS ALPHA COLON WS ALPHAS
+;
 
-## License
+DASH: '-' ;
 
-Copyright © 2025 FIXME
+INT: [0-9] + ; 
 
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-https://www.eclipse.org/legal/epl-2.0.
+COLON: ':' ;
 
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+dash: '-' ;
+
+ALPHA:  [a-z] ;
+
+ALPHAS: [a-z] + ;
+
+WS : ' ' ;
+
+
+/*
+WS
+  : ( ' '
+  | '\t'
+  | '\n'
+  | '\r'
+  ) -> channel(HIDDEN)
+;
+*/
+
+```
+
+
+
