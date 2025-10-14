@@ -1,44 +1,33 @@
 # day4
 
-FIXME: description
+counts valid passports based on properties
 
-## Installation
+valid passports must have a number of these properties except a few
 
-Download from https://example.com/FIXME.
+typical input 
 
-## Usage
+```
+iyr:1928 cid:150 pid:476113241 eyr:2039 hcl:a5ac0f
+ecl:#25f8d2
+byr:2027 hgt:190
 
-FIXME: explanation
+hgt:168cm eyr:2026 ecl:hzl hcl:#fffffd cid:169 pid:920076943
+byr:1929 iyr:2013
 
-    $ java -jar day4-0.1.0-standalone.jar [args]
+hgt:156cm ecl:brn eyr:2023
+iyr:2011
+hcl:#6b5442 pid:328412891 byr:1948
 
-## Options
+byr:1950 iyr:2019 eyr:2020 ecl:amb cid:279 pid:674907993 hgt:189cm hcl:#602927
 
-FIXME: listing of options this app accepts.
+byr:1976
+ecl:hzl iyr:2015 hgt:178cm eyr:2022 hcl:#341e13
+pid:473630095
 
-## Examples
+```
 
-...
+split file based on empty lines
 
-### Bugs
+forms groups
+from these groups determine properties key:value pairs
 
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
-
-## License
-
-Copyright © 2025 FIXME
-
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-https://www.eclipse.org/legal/epl-2.0.
-
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
