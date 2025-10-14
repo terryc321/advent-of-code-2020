@@ -1,0 +1,7 @@
+
+Clojure for the brave and true
+
+Fresh emacs install - ie remove ~/.emacs.d
+
+add https melpa to package initialise
+
