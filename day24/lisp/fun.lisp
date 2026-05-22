@@ -190,7 +190,87 @@
 ;; 10
 ;; (length (part1))
 ;; 277
-	    
+
+;; part 2 
+;;Any black tile with zero or more than 2 black tiles immediately adjacent to it is flipped to white.
+;;Any white tile with exactly 2 black tiles immediately adjacent to it is flipped to black.
+
+;; positions only held for black tiles 
+(defun one-day (black-positions)
+  (let ((removal-list nil)
+	(insertion-list nil)
+	(white-positions nil)
+	(fn-directions (list #'north-east #'east #'south-east
+			     #'south-west #'west #'north-west)))
+    (labels ((add-position (p)  (setq white-positions (cons p white-positions))))
+      ;; construct removal list of positions of black positions to be eliminated
+      (dolist (p black-positions)
+	(let ((neighbour 0))
+	  (when (member (north-east p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (east p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (south-east p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (south-west p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (west p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (north-west p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (or (= neighbour 0)
+		    (> neighbour 2))
+	    (setq removal-list (cons p removal-list)))))
+
+      ;; find adjacent white tiles - any reachable from black positions
+      ;; - not black - ie not in black positions
+      (dolist (p black-positions)
+	(loop for fn in fn-directions do
+	  (let ((adjacent (funcall fn p)))
+	    (when (not (member adjacent black-positions :test #'same-pos))
+	      (add-position adjacent)))))
+
+      ;; for each white neighbour tile - if it has 2 black neighbours -
+      ;; include it for insertion list 
+      (dolist (p white-positions)
+	(let ((neighbour 0))
+	  (when (member (north-east p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (east p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (south-east p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (south-west p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (west p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (member (north-west p) black-positions :test #'same-pos) (incf neighbour))
+	  (when (= neighbour 2)
+	    (setq insertion-list (cons p insertion-list)))))
+      ;;
+      (let ((result black-positions))
+	(loop for p in removal-list do
+	  (setq result (remove p result :test #'same-pos)))
+	(loop for p in insertion-list do
+	  (when (not (member p result :test #'same-pos))
+	    (setq result (cons p result))))
+	result))))
+
+(defun example2 ()
+  (let ((black-positions (example)))
+    (loop for i from 1 to 100 do
+      (setq black-positions (one-day black-positions))
+      (format t "day ~a => ~a~%" i (length black-positions)))))
+
+(defun part2 ()
+  (let ((black-positions (part1)))
+    (loop for i from 1 to 100 do
+      (setq black-positions (one-day black-positions))
+      (format t "day ~a => ~a~%" i (length black-positions)))))
+
+
+;; slow down on iterating over lists 
+;; part2 - accepted answer
+;; day 100 => 3531
+
+
+
+      
+      
+	
+    
+      
+	
+    
 
 
     
