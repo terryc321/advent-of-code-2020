@@ -16,7 +16,7 @@ include [clj-antlr "0.2.14"] in project.clj dependencies
 ```
 
 
-The Day2 Grammar file we created , not used to antlr at moment , but it did its job great.
+The Day2 Grammar file we created , not extremely proficient using antlr at moment , but it did its job great.
 bit of trial and error.
 
 ```
